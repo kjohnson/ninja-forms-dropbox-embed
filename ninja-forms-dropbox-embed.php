@@ -1,9 +1,9 @@
 <?php if ( ! defined( 'ABSPATH' ) ) exit;
 
 /*
-Plugin Name: Ninja Forms - Dropbox Embed
+Plugin Name: Ninja Forms - Dropbox Upload URL
 Plugin URI: http://kylebjohnson.me
-Description: Embeds a File uploaded by Ninja Forms to Dropbox
+Description: A temporary fix for the Uploaded Dropbox URL
 Version: 0.0.1
 
 Author: Kyle B. Johnson
@@ -29,9 +29,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 /**
- * Class NF_DropboxEmbed
+ * Class NF_DropboxUploadURL
  */
-class NF_DropboxEmbed
+class NF_DropboxUploadURL
 {
     const VERSION = '0.0.1';
 
@@ -40,75 +40,35 @@ class NF_DropboxEmbed
      */
     public function __construct()
     {
-        add_action( 'ninja_forms_post_process', array( $this, 'ninja_forms_post_process' ),  9001);
-        add_action( 'ninja_forms_create_post', array( $this, 'ninja_forms_create_post' ), 10 );
-        add_shortcode( 'nf_dropbox_embed', array( $this, 'dropbox_embed' ) );
+        add_action( 'ninja_forms_post_process', array( $this, 'ninja_forms_post_process' ), 1 );
     }
 
     /*
     * Public Methods
     */
 
-    //Add public methods here
-
     public function ninja_forms_post_process()
     {
         global $ninja_forms_processing;
 
-        $sub_id = $ninja_forms_processing->data['form']['sub_id'];
+        foreach( $ninja_forms_processing->data['field_data'] as $field ){
 
-        $post_id = $ninja_forms_processing->post_id;
+            if( '_upload' == $field['type'] AND 'dropbox' == $field['data']['upload_location'] ){
 
-        $post = get_post( $post_id, ARRAY_A );
+                foreach( $ninja_forms_processing->data['fields'][ $field['id'] ] as $key => $file ){
 
-        // [nf_dropbox_embed sub={sub_id} field=1]
-        $post['post_content'] = str_replace( '{sub_id}', $sub_id, $post['post_content'] );
+                    $new_file_url = admin_url( '?nf-upload=' . $file['upload_id'] );
 
-        wp_update_post( $post );
-    }
+                    $ninja_forms_processing->data['fields'][ $field['id'] ][ $key ]['file_url'] = $new_file_url;
 
-    public function ninja_forms_create_post( $post_id )
-    {
-        global $ninja_forms_processing;
+                }
 
-        $ninja_forms_processing->post_id = $post_id;
-    }
-
-    public function dropbox_embed( $atts )
-    {
-        $atts['method'] = ( isset( $atts['method'] ) ) ? $atts['method'] : 'embed';
-
-        $files = Ninja_Forms()->sub( $atts['sub'] )->get_field( $atts['field'] );
-
-        if( ! is_array( $files ) ) return;
-
-        $return = '';
-
-        foreach( $files as $file ){
-            if( ! isset( $file['upload_id'] ) ) continue;
-
-            switch( $atts['method'] ) {
-                case 'url':
-                    $return .= 'http://php52.dev/wp/wp-admin/?nf-upload=' . $file['upload_id'];
-                    break;
-                case 'link':
-                    $return .= '<a href="http://php52.dev/wp/wp-admin/?nf-upload=' . $file['upload_id'] . '">' . $file['user_file_name'] . '</a>';
-                    break;
-                default:
-                    $return .= '<img src="http://php52.dev/wp/wp-admin/?nf-upload=' . $file['upload_id'] . '" alt="' . $file['user_file_name'] . '" />';
             }
 
         }
 
-        return $return;
     }
 
-
-    /*
-     * Private Methods
-     */
-
-    //Add private methods here
 }
 
-new NF_DropboxEmbed();
+new NF_DropboxUploadURL();
